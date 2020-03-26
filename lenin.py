@@ -1,3 +1,6 @@
+import functools
+import os
+import pickle
 import random
 import re
 
@@ -16,7 +19,7 @@ class Symbol:
         return not isinstance(other, Symbol) or self.symbol != other.symbol
 
     def __hash__(self):
-        return hash(f'{id(self)}{self.symbol}')
+        return hash(self.symbol)
 
 
 class Lenin:
@@ -27,7 +30,12 @@ class Lenin:
     brackets = '()[]{}'
     quotes = '\'"”“’‘‛’„«»'
 
-    def __init__(self, input_text):
+    def __init__(self, input_text='', pickle_path=None):
+        if pickle_path:
+            self.load(pickle_path)
+            self.validate()
+            return
+
         text = self.prepare_text(input_text)
         self.terminators = {
             t: text.count(t) for t in self.sentence_terminators
@@ -71,6 +79,59 @@ class Lenin:
             raise ValueError(
                 'Unable to construct Markov\'s chain on the given text')
         self.transitions = transitions
+
+    def load(self, pickle_path):
+        try:
+            obj = pickle.load(open(pickle_path, 'rb'))
+            self.terminators = obj['terminators']
+            self.transitions = obj['transitions']
+        except FileNotFoundError:
+            raise ValueError(
+                f'specified pickle file "{pickle_path}" does not exist!')
+        except pickle.UnpicklingError:
+            raise ValueError(
+                f'specified pickle file "{pickle_path}" does not seem to be a correct pickle file')
+
+    def dump(self, pickle_path='./lenin.pickle'):
+        obj = {
+            'transitions': self.transitions,
+            'terminators': self.terminators
+        }
+        pickle.dump(obj, open(pickle_path, 'wb'))
+
+    def validate(self):
+        def valid_transitions_key(k):
+            return isinstance(k, (Symbol, str))
+
+        def valid_transitions_value(v):
+            return isinstance(v, float) and v >= 0 and v <= 1
+
+        def valid_terminators_key(k):
+            return isinstance(k, str) and k in self.sentence_terminators
+
+        valid_terminators_value = valid_transitions_value
+
+        keys_from = list(self.transitions.keys())
+        keys_to = [list(d.keys())[0] for d in self.transitions.values()]
+        transitions_keys = keys_from + keys_to
+        transitions_values = functools.reduce(lambda l1, l2: l1 + l2,
+                                              [list(d.values()) for d in self.transitions.values()])
+
+        terminators_keys = list(self.terminators.keys())
+        terminators_values = list(self.terminators.values())
+
+        if len(list(filter(valid_transitions_key, transitions_keys))) != len(transitions_keys):
+            raise ValueError(
+                f'transitions keys must be {Symbol} or {str}')
+        if len(list(filter(valid_transitions_value, transitions_values))) != len(transitions_values):
+            raise ValueError(
+                f'transitions values must be {float} in range from 0.0 to 1.0')
+        if len(list(filter(valid_terminators_key, terminators_keys))) != len(terminators_keys):
+            raise ValueError(
+                f'terminators keys must be {str} and within this list: {self.sentence_terminators}')
+        if len(list(filter(valid_terminators_value, terminators_values))) != len(terminators_values):
+            raise ValueError(
+                f'terminators values must be {float} in range from 0.0 to 1.0')
 
     def enclose_sentence(self, sentence):
         result = [self.sentence_start]
