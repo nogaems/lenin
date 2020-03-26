@@ -120,16 +120,16 @@ class Lenin:
         terminators_keys = list(self.terminators.keys())
         terminators_values = list(self.terminators.values())
 
-        if len(list(filter(valid_transitions_key, transitions_keys))) != len(transitions_keys):
+        if not all(map(valid_transitions_key, transitions_keys)):
             raise ValueError(
                 f'transitions keys must be {Symbol} or {str}')
-        if len(list(filter(valid_transitions_value, transitions_values))) != len(transitions_values):
+        if not all(map(valid_transitions_value, transitions_values)):
             raise ValueError(
                 f'transitions values must be {float} in range from 0.0 to 1.0')
-        if len(list(filter(valid_terminators_key, terminators_keys))) != len(terminators_keys):
+        if not all(map(valid_terminators_key, terminators_keys)):
             raise ValueError(
                 f'terminators keys must be {str} and within this list: {self.sentence_terminators}')
-        if len(list(filter(valid_terminators_value, terminators_values))) != len(terminators_values):
+        if not all(map(valid_terminators_value, terminators_values)):
             raise ValueError(
                 f'terminators values must be {float} in range from 0.0 to 1.0')
 
